@@ -1,6 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
+import 'package:dio/dio.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -13,27 +12,31 @@ class _HomepageState extends State<Homepage> {
   bool loading = false;
   List data = [];
 
-  // GET REQUEST
+  final Dio dio = Dio();
+
   getData() async {
     setState(() {
       loading = true;
     });
 
     try {
-      var response = await get(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts'),
-      );
+      var response =
+          await dio.get('https://jsonplaceholder.typicode.com/posts');
 
       if (response.statusCode == 200) {
-        var responsebody = jsonDecode(response.body);
+        var responsebody = response.data;
 
         setState(() {
           data.clear();
           data.addAll(responsebody);
         });
       }
-    } catch (e) {
-      print(e);
+    } on DioError catch (e) {
+      print(e.message);
+    } finally {
+      setState(() {
+        loading = false;
+      });
     }
 
     setState(() {
@@ -41,12 +44,11 @@ class _HomepageState extends State<Homepage> {
     });
   }
 
-  // POST REQUEST
   postData(String title, String body, String userId) async {
     try {
-      var response = await post(
-        Uri.parse('https://jsonplaceholder.typicode.com/posts'),
-        body: {
+      var response = await dio.post(
+        'https://jsonplaceholder.typicode.com/posts',
+        data: {
           'title': title,
           'body': body,
           'userId': userId,
@@ -54,7 +56,7 @@ class _HomepageState extends State<Homepage> {
       );
 
       if (response.statusCode == 201) {
-        var responsebody = jsonDecode(response.body);
+        var responsebody = response.data;
 
         setState(() {
           data.insert(0, responsebody);
@@ -71,7 +73,6 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
-  // ADD POST DIALOG
   addPostDialog() {
     TextEditingController title = TextEditingController();
     TextEditingController body = TextEditingController();
@@ -143,16 +144,13 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
-  // DELETE REQUEST
   deleteData(int id, int index) async {
     try {
-      var response = await delete(
-        Uri.parse(
-          'https://jsonplaceholder.typicode.com/posts/$id',
-        ),
+      var response = await dio.delete(
+        'https://jsonplaceholder.typicode.com/posts/$id',
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
           data.removeAt(index);
         });
@@ -180,7 +178,6 @@ class _HomepageState extends State<Homepage> {
       ),
       body: ListView(
         children: [
-          // GET BUTTON
           Container(
             margin: const EdgeInsets.symmetric(
               horizontal: 30,
@@ -193,8 +190,6 @@ class _HomepageState extends State<Homepage> {
               child: const Text('GET Request'),
             ),
           ),
-
-          // POST BUTTON
           Container(
             margin: const EdgeInsets.symmetric(
               horizontal: 30,
@@ -206,8 +201,6 @@ class _HomepageState extends State<Homepage> {
               child: const Text('POST Request'),
             ),
           ),
-
-          // LOADING
           if (loading)
             const Padding(
               padding: EdgeInsets.all(15),
@@ -215,8 +208,6 @@ class _HomepageState extends State<Homepage> {
                 child: CircularProgressIndicator(),
               ),
             ),
-
-          // POSTS LIST
           ...List.generate(
             data.length,
             (index) {
